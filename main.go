@@ -17,16 +17,16 @@ import (
 )
 
 const (
-	mintKeyFormat = "apps/%s/%s"
-	credentialsFile = "credentials.json"
+	mintKeyFormat      = "apps/%s/%s"
+	credentialsFile    = "credentials.json"
 	credentialsTmpFile = "credentials.json.tmp"
 )
 
 var (
-	mintBucket = flag.String("mint-bucket", "", "The S3 bucket, where mint stores all credentials.")
-	appId = flag.String("application-id", "", "The application ID of Kio for which to retrieve credentials.")
-	localDir = flag.String("local-directory", "", "The local directory, where the credentials will be stored.")
-	localUser = flag.String("local-user", "", "The local user which needs to read the credentials.")
+	mintBucket     = flag.String("mint-bucket", "", "The S3 bucket, where mint stores all credentials.")
+	appId          = flag.String("application-id", "", "The application ID of Kio for which to retrieve credentials.")
+	localDir       = flag.String("local-directory", "", "The local directory, where the credentials will be stored.")
+	localUser      = flag.String("local-user", "", "The local user which needs to read the credentials.")
 	updateInterval = flag.Int("update-interval", 60, "Update interval in seconds.")
 
 	emptyString = ""
@@ -34,7 +34,7 @@ var (
 
 type CredentialsData struct {
 	ApplicationUsername string `json:"application_username"`
-	ClientId string `json:"client_id"`
+	ClientId            string `json:"client_id"`
 }
 
 func requireFlag(flagName string, flagValue *string) {
@@ -84,7 +84,7 @@ func main() {
 
 		input := &s3.GetObjectInput{
 			Bucket: mintBucket,
-			Key: &mintKey,
+			Key:    &mintKey,
 		}
 
 		output, err := client.GetObject(input)
