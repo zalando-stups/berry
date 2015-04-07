@@ -119,7 +119,7 @@ func main() {
 				continue
 			}
 
-			log.Printf("Got new credentials: application_username=%s, client_id=%s")
+			log.Printf("Got new credentials: application_username=%s, client_id=%s", credentialsData.ApplicationUsername, credentialsData.ClientId)
 		}
 	}
 }
