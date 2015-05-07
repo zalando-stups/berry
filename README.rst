@@ -12,16 +12,18 @@ Python 3.4 is required.
 
 .. code-block:: bash
 
-    $ pip3 install --upgrade stups-berry
+    $ sudo pip3 install --upgrade stups-berry
 
 Usage
 =====
 
 See the help for configuration options:
 
-    berry -h
+.. code-block:: bash
 
-In addition, berry takes all the [standard AWS SDK inputs](http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs)
+    $ berry --help
+
+In addition, berry takes all the `standard AWS SDK inputs`_
 (local credentials file, environment variables and instance profiles).
 
 License
@@ -42,3 +44,4 @@ See the License for the specific language governing permissions and
 limitations under the License.
 
 .. _mint: https://github.com/zalando-stups/mint
+.. _standard AWS SDK inputs: http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs
