@@ -1,2 +1,5 @@
 # vim
 *.swp
+
+# Python
+*.egg*
