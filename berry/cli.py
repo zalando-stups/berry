@@ -41,17 +41,18 @@ def run_berry(args):
 
         # download credentials
 
-        for fn in ('user', 'client'):
+        for fn in ['user', 'client']:
             try:
                 local_file = os.path.join(local_directory, '{}.json'.format(fn))
                 tmp_file = local_file + '.tmp'
+                key = bucket.get_key('{}/{}.json'.format(application_id, fn), validate=False)
+                json_data = key.get_contents_as_string()
+                # check that the file contains valid JSON
+                json.loads(json_data.decode('utf-8'))
+                # TODO: check whether the file contents changed
                 with open(tmp_file, 'wb') as fd:
-                    key = bucket.get_key('/{}/{}.json'.format(application_id, fn))
-                    key.get_contents_to_file(fd)
-                    fd.seek(0)
-                    data = json.load(fd)
-                    print(data)
-                    os.rename(fd.name, local_file)
+                    fd.write(json_data)
+                os.rename(tmp_file, local_file)
             except:
                 logging.exception('Failed to download credentials')
 
