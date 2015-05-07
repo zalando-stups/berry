@@ -6,7 +6,15 @@ import json
 import logging
 import os
 import yaml
+import requests
+import string
 import time
+
+
+def get_region():
+    r = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone')
+    az = r.text
+    return az.rstrip(string.ascii_lowercase)
 
 
 def run_berry(args):
@@ -22,7 +30,7 @@ def run_berry(args):
     local_directory = args.local_directory
 
     # region?
-    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_REGION'))
+    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION') or get_region())
 
     if not s3:
         raise Exception('Could not connect to S3')
@@ -35,7 +43,7 @@ def run_berry(args):
 
         for fn in ('user', 'client'):
             try:
-                local_file = os.path.join(local_directory, 'user.json')
+                local_file = os.path.join(local_directory, '{}.json'.format(fn))
                 tmp_file = local_file + '.tmp'
                 with open(tmp_file, 'wb') as fd:
                     key = bucket.get_key('/{}/{}.json'.format(application_id, fn))
