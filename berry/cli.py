@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 
+import argparse
 import boto.s3
 import json
 import logging
 import os
 import yaml
+import time
 
 
-def main(args):
+def run_berry(args):
     try:
         with open('/etc/zalando.yaml') as fd:
             config = yaml.load(fd)
@@ -20,7 +22,11 @@ def main(args):
     local_directory = args.local_directory
 
     # region?
-    s3 = boto.s3.connect_to_region()
+    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_REGION'))
+
+    if not s3:
+        raise Exception('Could not connect to S3')
+
     bucket = s3.get_bucket(mint_bucket)
 
     while True:
@@ -36,21 +42,25 @@ def main(args):
                     key.get_contents_to_file(fd)
                     fd.seek(0)
                     data = json.load(fd)
+                    print(data)
                     os.rename(fd.name, local_file)
             except:
                 logging.exception('Failed to download credentials')
 
         time.sleep(args.interval)
 
-if __name__ == '__main__':
-    import argparse
+
+def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('local-directory')
+    parser.add_argument('local_directory')
     parser.add_argument('--application-id')
     parser.add_argument('--mint-bucket')
+    parser.add_argument('--region')
     parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
-    args = parser.parse()
+    args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARN)
-    main(args)
+    run_berry(args)
 
+if __name__ == '__main__':
+    main()

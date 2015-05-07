@@ -3,3 +3,8 @@
 
 # Python
 *.egg*
+__pycache__
+.coverage
+junit.xml
+coverage.xml
+dist/

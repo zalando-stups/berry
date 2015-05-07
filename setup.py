@@ -30,7 +30,7 @@ def read_version(package):
 NAME = 'stups-berry'
 MAIN_PACKAGE = 'berry'
 VERSION = read_version(MAIN_PACKAGE)
-DESCRIPTION = 'AWS Cloud Formation deployment CLI'
+DESCRIPTION = 'Credentials distribution agent'
 LICENSE = 'Apache License 2.0'
 URL = 'https://github.com/zalando-stups/berry'
 AUTHOR = 'Henning Jacobs'
