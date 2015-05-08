@@ -22,7 +22,6 @@ python3 setup.py clean
 python3 setup.py test
 
 python3 setup.py sdist upload
-python3 setup-meta.py register
 
 git tag ${version}
 git push --tags
