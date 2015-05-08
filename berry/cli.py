@@ -27,10 +27,10 @@ def get_region():
 
 def run_berry(args):
     try:
-        with open('/etc/zalando.yaml') as fd:
+        with open('/etc/taupage.yaml') as fd:
             config = yaml.load(fd)
     except Exception as e:
-        logging.warn('Could not load configuration from zalando.yaml: {}'.format(e))
+        logging.warn('Could not load configuration from taupage.yaml: {}'.format(e))
         config = {}
 
     application_id = args.application_id or config.get('application_id')
