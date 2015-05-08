@@ -11,6 +11,14 @@ import string
 import time
 
 
+class UsageError(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+    def __str__(self):
+        return 'Usage Error: {}'.format(self.msg)
+
+
 def get_region():
     r = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone')
     az = r.text
@@ -25,9 +33,15 @@ def run_berry(args):
         logging.warn('Could not load configuration from zalando.yaml: {}'.format(e))
         config = {}
 
-    application_id = args.application_id or config['application_id']
-    mint_bucket = args.mint_bucket or config['mint_bucket']
+    application_id = args.application_id or config.get('application_id')
+    mint_bucket = args.mint_bucket or config.get('mint_bucket')
     local_directory = args.local_directory
+
+    if not application_id:
+        raise UsageError('Application ID missing, please set "application_id" in your Taupage user data YAML')
+
+    if not mint_bucket:
+        raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your Taupage user data YAML')
 
     # region?
     s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION') or get_region())
@@ -69,7 +83,10 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.WARN)
-    run_berry(args)
+    try:
+        run_berry(args)
+    except UsageError as e:
+        logging.error(e)
 
 if __name__ == '__main__':
     main()
