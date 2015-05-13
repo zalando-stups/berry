@@ -2,12 +2,11 @@
 
 import argparse
 import boto.s3
+import boto.utils
 import json
 import logging
 import os
 import yaml
-import requests
-import string
 import time
 
 
@@ -20,9 +19,8 @@ class UsageError(Exception):
 
 
 def get_region():
-    r = requests.get('http://169.254.169.254/latest/meta-data/placement/availability-zone')
-    az = r.text
-    return az.rstrip(string.ascii_lowercase)
+    identity = boto.utils.get_instance_identity()['document']
+    return identity['region']
 
 
 def run_berry(args):
@@ -49,7 +47,7 @@ def run_berry(args):
     if not s3:
         raise Exception('Could not connect to S3')
 
-    bucket = s3.get_bucket(mint_bucket)
+    bucket = s3.get_bucket(mint_bucket, validate=False)
 
     while True:
 
