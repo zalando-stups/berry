@@ -8,3 +8,4 @@ __pycache__
 junit.xml
 coverage.xml
 dist/
+*.pyc
