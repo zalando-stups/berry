@@ -28,7 +28,7 @@ constantly updates the local credentials file, so that applications can read the
 Installation
 ============
 
-Python 3.4 is required.
+Python 2.7+ is required.
 
 .. code-block:: bash
 

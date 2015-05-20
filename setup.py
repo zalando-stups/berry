@@ -46,11 +46,11 @@ JUNIT_XML = True
 CLASSIFIERS = [
     'Development Status :: 4 - Beta',
     'Environment :: Console',
-    'Intended Audience :: Developers',
     'Intended Audience :: System Administrators',
     'License :: OSI Approved :: Apache Software License',
     'Operating System :: POSIX :: Linux',
     'Programming Language :: Python',
+    'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: Implementation :: CPython',
 ]
