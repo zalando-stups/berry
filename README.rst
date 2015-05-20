@@ -2,6 +2,26 @@
 berry
 =====
 
+.. image:: https://travis-ci.org/zalando-stups/berry.svg?branch=master
+   :target: https://travis-ci.org/zalando-stups/berry
+   :alt: Build Status
+
+.. image:: https://coveralls.io/repos/zalando-stups/berry/badge.svg
+   :target: https://coveralls.io/r/zalando-stups/berry
+   :alt: Code Coverage
+
+.. image:: https://img.shields.io/pypi/dw/stups-berry.svg
+   :target: https://pypi.python.org/pypi/stups-berry/
+   :alt: PyPI Downloads
+
+.. image:: https://img.shields.io/pypi/v/stups-berry.svg
+   :target: https://pypi.python.org/pypi/stups-berry/
+   :alt: Latest PyPI version
+
+.. image:: https://img.shields.io/pypi/l/stups-berry.svg
+   :target: https://pypi.python.org/pypi/stups-berry/
+   :alt: License
+
 Berry is the partner component for `mint`_. Berry is a tiny agent, that
 constantly updates the local credentials file, so that applications can read their most recent passwords easily.
 
