@@ -60,7 +60,7 @@ def run_berry(args):
                 key = bucket.get_key('{}/{}.json'.format(application_id, fn), validate=False)
                 json_data = key.get_contents_as_string()
                 # check that the file contains valid JSON
-                json.loads(json_data.decode('utf-8'))
+                new_data = json.loads(json_data.decode('utf-8'))
 
                 try:
                     with open(local_file, 'rb') as fd:
@@ -68,7 +68,7 @@ def run_berry(args):
                 except:
                     old_data = None
                 # check whether the file contents changed
-                if json_data != old_data:
+                if new_data != old_data:
                     with open(tmp_file, 'wb') as fd:
                         fd.write(json_data)
                     os.rename(tmp_file, local_file)
