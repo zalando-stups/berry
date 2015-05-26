@@ -76,6 +76,9 @@ def run_berry(args):
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
 
+        if args.once:
+            break
+
         time.sleep(args.interval)
 
 
@@ -86,6 +89,7 @@ def main():
     parser.add_argument('--mint-bucket', help='Mint S3 bucket name')
     parser.add_argument('--region', help='AWS region ID')
     parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
+    parser.add_argument('--once', help='Download credentials once and exit', action='store_true')
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
