@@ -23,6 +23,25 @@ def get_region():
     return identity['region']
 
 
+def lookup_aws_credentials(application_id, path):
+    with open(path) as fd:
+        for line in fd:
+            line = line.strip()
+            if not line.startswith('#'):
+                parts = line.split(':')
+                if parts[0] == application_id:
+                    return parts[1], parts[2]
+    return None, None
+
+
+def use_aws_credentials(application_id, path):
+    access_key_id, secret_access_key = lookup_aws_credentials(application_id, path)
+    if not access_key_id:
+        raise UsageError('No AWS credentials found for application "{}" in {}'.format(application_id, path))
+    os.environ['AWS_ACCESS_KEY_ID'] = access_key_id
+    os.environ['AWS_SECRET_ACCESS_KEY'] = secret_access_key
+
+
 def run_berry(args):
     try:
         with open('/etc/taupage.yaml') as fd:
@@ -40,6 +59,9 @@ def run_berry(args):
 
     if not mint_bucket:
         raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your Taupage user data YAML')
+
+    if args.aws_credentials_file:
+        use_aws_credentials(application_id, args.aws_credentials_file)
 
     # region?
     s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION') or get_region())
@@ -85,9 +107,11 @@ def run_berry(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('local_directory', help='Local directory to write credentials to')
-    parser.add_argument('--application-id', help='Application ID as registered in Kio')
-    parser.add_argument('--mint-bucket', help='Mint S3 bucket name')
+    parser.add_argument('-a', '--application-id', help='Application ID as registered in Kio')
+    parser.add_argument('-m', '--mint-bucket', help='Mint S3 bucket name')
     parser.add_argument('--region', help='AWS region ID')
+    parser.add_argument('-c', '--aws-credentials-file',
+                        help='Lookup AWS credentials by application ID in the given file')
     parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
     parser.add_argument('--once', help='Download credentials once and exit', action='store_true')
     args = parser.parse_args()
