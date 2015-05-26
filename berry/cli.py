@@ -44,10 +44,10 @@ def use_aws_credentials(application_id, path):
 
 def run_berry(args):
     try:
-        with open('/etc/taupage.yaml') as fd:
+        with open(args.config_file) as fd:
             config = yaml.load(fd)
     except Exception as e:
-        logging.warn('Could not load configuration from taupage.yaml: {}'.format(e))
+        logging.warn('Could not load configuration from {}: {}'.format(args.config_file, e))
         config = {}
 
     application_id = args.application_id or config.get('application_id')
@@ -55,16 +55,17 @@ def run_berry(args):
     local_directory = args.local_directory
 
     if not application_id:
-        raise UsageError('Application ID missing, please set "application_id" in your Taupage user data YAML')
+        raise UsageError('Application ID missing, please set "application_id" in your configuration YAML')
 
     if not mint_bucket:
-        raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your Taupage user data YAML')
+        raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your configuration YAML')
 
     if args.aws_credentials_file:
         use_aws_credentials(application_id, args.aws_credentials_file)
 
     # region?
-    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION') or get_region())
+    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION')
+                                   or config.get('region') or get_region())
 
     if not s3:
         raise Exception('Could not connect to S3')
@@ -107,6 +108,8 @@ def run_berry(args):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('local_directory', help='Local directory to write credentials to')
+    parser.add_argument('-f', '--config-file', help='Read berry settings from given YAML file',
+                        default='/etc/taupage.yaml')
     parser.add_argument('-a', '--application-id', help='Application ID as registered in Kio')
     parser.add_argument('-m', '--mint-bucket', help='Mint S3 bucket name')
     parser.add_argument('--region', help='AWS region ID')
