@@ -61,26 +61,34 @@ def run_berry(args):
                 json_data = key.get_contents_as_string()
                 # check that the file contains valid JSON
                 json.loads(json_data.decode('utf-8'))
-                # TODO: check whether the file contents changed
-                with open(tmp_file, 'wb') as fd:
-                    fd.write(json_data)
-                os.rename(tmp_file, local_file)
+
+                try:
+                    with open(local_file, 'rb') as fd:
+                        old_data = json.load(fd)
+                except:
+                    old_data = None
+                # check whether the file contents changed
+                if json_data != old_data:
+                    with open(tmp_file, 'wb') as fd:
+                        fd.write(json_data)
+                    os.rename(tmp_file, local_file)
+                    logging.info('Rotated {} credentials for {}'.format(fn, application_id))
             except:
-                logging.exception('Failed to download credentials')
+                logging.exception('Failed to download {} credentials'.format(fn))
 
         time.sleep(args.interval)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('local_directory')
-    parser.add_argument('--application-id')
-    parser.add_argument('--mint-bucket')
-    parser.add_argument('--region')
+    parser.add_argument('local_directory', help='Local directory to write credentials to')
+    parser.add_argument('--application-id', help='Application ID as registered in Kio')
+    parser.add_argument('--mint-bucket', help='Mint S3 bucket name')
+    parser.add_argument('--region', help='AWS region ID')
     parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
     args = parser.parse_args()
 
-    logging.basicConfig(level=logging.WARN)
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
     try:
         run_berry(args)
     except UsageError as e:
