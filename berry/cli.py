@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import boto.exception
 import boto.s3
 import boto.utils
 import json
@@ -16,11 +17,6 @@ class UsageError(Exception):
 
     def __str__(self):
         return 'Usage Error: {}'.format(self.msg)
-
-
-def get_region():
-    identity = boto.utils.get_instance_identity()['document']
-    return identity['region']
 
 
 def lookup_aws_credentials(application_id, path):
@@ -63,9 +59,7 @@ def run_berry(args):
     if args.aws_credentials_file:
         use_aws_credentials(application_id, args.aws_credentials_file)
 
-    # region?
-    s3 = boto.s3.connect_to_region(args.region or os.environ.get('AWS_DEFAULT_REGION')
-                                   or config.get('region') or get_region())
+    s3 = boto.connect_s3()
 
     if not s3:
         raise Exception('Could not connect to S3')
@@ -96,6 +90,14 @@ def run_berry(args):
                         fd.write(json_data)
                     os.rename(tmp_file, local_file)
                     logging.info('Rotated {} credentials for {}'.format(fn, application_id))
+            except boto.exception.S3ResponseError as e:
+                if e.status == 403:
+                    logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
+                                   'Check your IAM role/user policy to allow read access!').format(
+                                  key.name, mint_bucket))
+                else:
+                    logging.error('Could not read from mint S3 bucket "{}": {} {}: {}'.format(
+                                  mint_bucket, e.status, e.reason, e.message))
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
 
@@ -112,7 +114,6 @@ def main():
                         default='/etc/taupage.yaml')
     parser.add_argument('-a', '--application-id', help='Application ID as registered in Kio')
     parser.add_argument('-m', '--mint-bucket', help='Mint S3 bucket name')
-    parser.add_argument('--region', help='AWS region ID')
     parser.add_argument('-c', '--aws-credentials-file',
                         help='Lookup AWS credentials by application ID in the given file')
     parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
