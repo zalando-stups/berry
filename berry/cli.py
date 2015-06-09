@@ -71,16 +71,17 @@ def run_berry(args):
         # download credentials
 
         for fn in ['user', 'client']:
+            key_name = '{}/{}.json'.format(application_id, fn)
             try:
                 local_file = os.path.join(local_directory, '{}.json'.format(fn))
                 tmp_file = local_file + '.tmp'
-                key = bucket.get_key('{}/{}.json'.format(application_id, fn), validate=False)
+                key = bucket.get_key(key_name, validate=False)
                 json_data = key.get_contents_as_string()
                 # check that the file contains valid JSON
                 new_data = json.loads(json_data.decode('utf-8'))
 
                 try:
-                    with open(local_file, 'rb') as fd:
+                    with open(local_file, 'r') as fd:
                         old_data = json.load(fd)
                 except:
                     old_data = None
@@ -91,10 +92,16 @@ def run_berry(args):
                     os.rename(tmp_file, local_file)
                     logging.info('Rotated {} credentials for {}'.format(fn, application_id))
             except boto.exception.S3ResponseError as e:
+                # more friendly error messages
+                # https://github.com/zalando-stups/berry/issues/2
                 if e.status == 403:
                     logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
                                    'Check your IAM role/user policy to allow read access!').format(
-                                  key.name, mint_bucket))
+                                  key_name, mint_bucket))
+                elif e.status == 404:
+                    logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
+                                   'Mint either did not sync them yet or the mint configuration is wrong.').format(
+                                  key_name, mint_bucket))
                 else:
                     logging.error('Could not read from mint S3 bucket "{}": {} {}: {}'.format(
                                   mint_bucket, e.status, e.reason, e.message))
