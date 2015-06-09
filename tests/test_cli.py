@@ -6,7 +6,7 @@ import os
 import time
 
 from berry.cli import *
-from unittest.mock import MagicMock
+from mock import MagicMock
 
 
 def test_use_aws_credentials(tmpdir):
