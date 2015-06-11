@@ -3,6 +3,8 @@ import boto
 import boto.exception
 import logging
 import os
+import pytest
+import sys
 import time
 
 from berry.cli import *
@@ -59,6 +61,8 @@ def test_main_noargs(monkeypatch):
         pass
 
 
+@pytest.mark.skipif(sys.version_info < (3, 0),
+                    reason='fails with "ValueError: I/O operation on closed file" on Python 2.7')
 def test_s3_error_message(monkeypatch, tmpdir, capsys):
     bucket = MagicMock()
     bucket.get_key.side_effect = boto.exception.S3ResponseError(403, 'Forbbiden', {'message': 'Access Denied'})
