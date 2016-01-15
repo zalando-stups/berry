@@ -29,7 +29,7 @@ def test_rotate_credentials(monkeypatch, tmpdir, capsys):
 
     s3 = MagicMock()
     s3.get_object.return_value = response
-    monkeypatch.setattr('boto3.Session', mock_session(s3))
+    monkeypatch.setattr('boto3.session.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()
@@ -61,7 +61,7 @@ def test_rotate_credentials_with_file_config(monkeypatch, tmpdir):
 
     s3 = MagicMock()
     s3.get_object.return_value = response
-    monkeypatch.setattr('boto3.Session', mock_session(s3))
+    monkeypatch.setattr('boto3.session.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     log_info = MagicMock()
@@ -119,7 +119,7 @@ def test_s3_error_message(monkeypatch, tmpdir):
 
     s3 = MagicMock()
     s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 403}, 'Error': {'Message': 'Access Denied'}}, 'get_object')
-    monkeypatch.setattr('boto3.Session', mock_session(s3))
+    monkeypatch.setattr('boto3.session.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()

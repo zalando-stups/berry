@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
-import boto3
+import boto3.session
 import botocore.exceptions
 import json
 import logging
@@ -60,7 +60,7 @@ def run_berry(args):
         aws_credentials = {}
 
     while True:
-        session = boto3.Session(**aws_credentials)
+        session = boto3.session.Session(**aws_credentials)
         s3 = session.client('s3')
 
         for fn in ['user', 'client']:
