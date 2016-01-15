@@ -95,3 +95,13 @@ def test_s3_error_message(monkeypatch, tmpdir):
     run_berry(args)
 
     log_error.assert_called_with('Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". Mint either did not sync them yet or the mint configuration is wrong.')
+
+    # generic ClientError
+    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 999}, 'Error': {}}, 'get_object')
+    run_berry(args)
+    log_error.assert_called_with('Could not read from mint S3 bucket "my-mint-bucket": An error occurred (Unknown) when calling the get_object operation: Unknown')
+
+    # generic Exception
+    s3.get_object.side_effect = Exception('foobar')
+    run_berry(args)
+    log_error.assert_called_with('Failed to download client credentials', exc_info=True)

@@ -103,7 +103,7 @@ def run_berry(args):
                                   key_name, mint_bucket))
                 else:
                     logging.error('Could not read from mint S3 bucket "{}": {}'.format(
-                                  mint_bucket, str(e)))
+                                  mint_bucket, e))
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
 
