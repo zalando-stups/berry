@@ -1,11 +1,7 @@
 
-import boto
-import boto.exception
+import botocore.exceptions
 import logging
 import os
-import pytest
-import sys
-import time
 
 from berry.cli import *
 from mock import MagicMock
@@ -21,12 +17,12 @@ def test_use_aws_credentials(tmpdir):
 
 
 def test_rotate_credentials(monkeypatch, tmpdir, capsys):
-    bucket = MagicMock()
-    bucket.get_key.return_value.get_contents_as_string.return_value = b'{"application_username": "myteam_myapp", "application_password": "secret"}'
+    response = MagicMock()
+    response['Body'].read.return_value = b'{"application_username": "myteam_myapp", "application_password": "secret"}'
 
     s3 = MagicMock()
-    s3.get_bucket.return_value = bucket
-    monkeypatch.setattr('boto.connect_s3', lambda: s3)
+    s3.get_object.return_value = response
+    monkeypatch.setattr('boto3.client', lambda x: s3)
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()
@@ -61,15 +57,23 @@ def test_main_noargs(monkeypatch):
         pass
 
 
-@pytest.mark.skipif(sys.version_info < (3, 0),
-                    reason='fails with "ValueError: I/O operation on closed file" on Python 2.7')
-def test_s3_error_message(monkeypatch, tmpdir, capsys):
-    bucket = MagicMock()
-    bucket.get_key.side_effect = boto.exception.S3ResponseError(403, 'Forbbiden', {'message': 'Access Denied'})
+def test_main_missingargs(monkeypatch):
+    monkeypatch.setattr('sys.argv', ['berry', './'])
+    log_error = MagicMock()
+    monkeypatch.setattr('logging.warn', MagicMock())
+    monkeypatch.setattr('logging.error', log_error)
+    main()
+    log_error.assert_called_with('Usage Error: Application ID missing, please set "application_id" in your configuration YAML')
+
+
+def test_s3_error_message(monkeypatch, tmpdir):
+    log_error = MagicMock()
+    monkeypatch.setattr('logging.warn', MagicMock())
+    monkeypatch.setattr('logging.error', log_error)
 
     s3 = MagicMock()
-    s3.get_bucket.return_value = bucket
-    monkeypatch.setattr('boto.connect_s3', lambda: s3)
+    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 403}, 'Error': {'Message': 'Access Denied'}}, 'get_object')
+    monkeypatch.setattr('boto3.client', lambda x: s3)
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()
@@ -85,12 +89,19 @@ def test_s3_error_message(monkeypatch, tmpdir, capsys):
     logging.basicConfig(level=logging.INFO)
     run_berry(args)
 
-    out, err = capsys.readouterr()
-    assert 'Access denied while trying to read "myapp/client.json" from mint S3 bucket "my-mint-bucket"' in err
+    log_error.assert_called_with('Access denied while trying to read "myapp/client.json" from mint S3 bucket "my-mint-bucket". Check your IAM role/user policy to allow read access! (S3 error message: Access Denied)')
 
-    bucket.get_key.side_effect = boto.exception.S3ResponseError(404, 'Not Found')
+    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 404}, 'Error': {}}, 'get_object')
     run_berry(args)
 
-    out, err = capsys.readouterr()
-    assert 'Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket"' in err
+    log_error.assert_called_with('Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". Mint either did not sync them yet or the mint configuration is wrong.')
 
+    # generic ClientError
+    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 999}, 'Error': {}}, 'get_object')
+    run_berry(args)
+    log_error.assert_called_with('Could not read from mint S3 bucket "my-mint-bucket": An error occurred (Unknown) when calling the get_object operation: Unknown')
+
+    # generic Exception
+    s3.get_object.side_effect = Exception('foobar')
+    run_berry(args)
+    log_error.assert_called_with('Failed to download client credentials', exc_info=True)

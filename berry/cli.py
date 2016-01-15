@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
-import boto.exception
-import boto.s3
-import boto.utils
+import boto3
+import botocore.exceptions
 import json
 import logging
 import os
@@ -59,12 +58,7 @@ def run_berry(args):
     if args.aws_credentials_file:
         use_aws_credentials(application_id, args.aws_credentials_file)
 
-    s3 = boto.connect_s3()
-
-    if not s3:
-        raise Exception('Could not connect to S3')
-
-    bucket = s3.get_bucket(mint_bucket, validate=False)
+    s3 = boto3.client('s3')
 
     while True:
 
@@ -75,8 +69,10 @@ def run_berry(args):
             try:
                 local_file = os.path.join(local_directory, '{}.json'.format(fn))
                 tmp_file = local_file + '.tmp'
-                key = bucket.get_key(key_name, validate=False)
-                json_data = key.get_contents_as_string()
+                response = s3.get_object(Bucket=mint_bucket, Key=key_name)
+                body = response['Body']
+                json_data = body.read()
+
                 # check that the file contains valid JSON
                 new_data = json.loads(json_data.decode('utf-8'))
 
@@ -91,20 +87,23 @@ def run_berry(args):
                         fd.write(json_data)
                     os.rename(tmp_file, local_file)
                     logging.info('Rotated {} credentials for {}'.format(fn, application_id))
-            except boto.exception.S3ResponseError as e:
+            except botocore.exceptions.ClientError as e:
                 # more friendly error messages
                 # https://github.com/zalando-stups/berry/issues/2
-                if e.status == 403:
+                status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+                if status_code == 403:
+                    msg = e.response['Error'].get('Message')
                     logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
-                                   'Check your IAM role/user policy to allow read access!').format(
-                                  key_name, mint_bucket))
-                elif e.status == 404:
+                                   'Check your IAM role/user policy to allow read access! ' +
+                                   '(S3 error message: {})').format(
+                                  key_name, mint_bucket, msg))
+                elif status_code == 404:
                     logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
                                    'Mint either did not sync them yet or the mint configuration is wrong.').format(
                                   key_name, mint_bucket))
                 else:
-                    logging.error('Could not read from mint S3 bucket "{}": {} {}: {}'.format(
-                                  mint_bucket, e.status, e.reason, e.message))
+                    logging.error('Could not read from mint S3 bucket "{}": {}'.format(
+                                  mint_bucket, e))
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
 
@@ -128,10 +127,12 @@ def main():
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    # do not log new HTTPS connections (INFO level):
+    logging.getLogger('botocore.vendored.requests').setLevel(logging.WARN)
     try:
         run_berry(args)
     except UsageError as e:
-        logging.error(e)
+        logging.error(str(e))
 
 if __name__ == '__main__':
     main()
