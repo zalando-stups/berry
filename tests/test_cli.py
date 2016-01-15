@@ -2,8 +2,10 @@
 import botocore.exceptions
 import logging
 import os
+import pytest
+import yaml
 
-from berry.cli import *
+from berry.cli import use_aws_credentials, run_berry, main, UsageError
 from mock import MagicMock
 
 
@@ -51,6 +53,45 @@ def test_rotate_credentials(monkeypatch, tmpdir, capsys):
     run_berry(args)
     out, err = capsys.readouterr()
     assert 'Rotated' not in err
+
+
+def test_rotate_credentials_with_file_config(monkeypatch, tmpdir):
+    response = MagicMock()
+    response['Body'].read.return_value = b'{"application_username": "myteam_myapp", "application_password": "secret"}'
+
+    s3 = MagicMock()
+    s3.get_object.return_value = response
+    monkeypatch.setattr('boto3.Session', mock_session(s3))
+    monkeypatch.setattr('time.sleep', lambda x: 0)
+
+    log_info = MagicMock()
+    monkeypatch.setattr('logging.warn', MagicMock())
+    monkeypatch.setattr('logging.info', log_info)
+
+    config_path = str(tmpdir.join('taupage.yaml'))
+    with open(config_path, 'w') as fd:
+        yaml.safe_dump({'application_id': 'someapp'}, fd)
+
+    credentials_path = str(tmpdir.join('credentials'))
+    with open(credentials_path, 'w') as fd:
+        fd.write('someapp:foo:bar')
+
+    args = MagicMock()
+    args.application_id = None
+    args.config_file = config_path
+    args.once = True
+    args.aws_credentials_file = credentials_path
+    args.local_directory = str(tmpdir.join('out'))
+
+    os.makedirs(args.local_directory)
+
+    run_berry(args)
+    log_info.assert_called_with('Rotated client credentials for someapp')
+
+    args.application_id = 'wrongapp'
+    with pytest.raises(UsageError) as excinfo:
+        run_berry(args)
+    assert 'No AWS credentials found for application "wrongapp" in' in excinfo.value.msg
 
 
 def test_main_noargs(monkeypatch):
