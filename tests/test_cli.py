@@ -10,10 +10,15 @@ from mock import MagicMock
 def test_use_aws_credentials(tmpdir):
     p = tmpdir.join('aws-creds')
     p.write('# my comment\nsomeapp:foo:bar\nmyapp:abc123:456789\nblub:a:b')
-    use_aws_credentials('myapp', str(p))
+    creds = use_aws_credentials('myapp', str(p))
 
-    assert 'abc123' == os.environ.get('AWS_ACCESS_KEY_ID')
-    assert '456789' == os.environ.get('AWS_SECRET_ACCESS_KEY')
+    assert creds == {'aws_access_key_id': 'abc123', 'aws_secret_access_key': '456789'}
+
+
+def mock_session(client):
+    session = MagicMock()
+    session.client.return_value = client
+    return lambda **kwargs: session
 
 
 def test_rotate_credentials(monkeypatch, tmpdir, capsys):
@@ -22,7 +27,7 @@ def test_rotate_credentials(monkeypatch, tmpdir, capsys):
 
     s3 = MagicMock()
     s3.get_object.return_value = response
-    monkeypatch.setattr('boto3.client', lambda x: s3)
+    monkeypatch.setattr('boto3.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()
@@ -73,7 +78,7 @@ def test_s3_error_message(monkeypatch, tmpdir):
 
     s3 = MagicMock()
     s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 403}, 'Error': {'Message': 'Access Denied'}}, 'get_object')
-    monkeypatch.setattr('boto3.client', lambda x: s3)
+    monkeypatch.setattr('boto3.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
     args = MagicMock()

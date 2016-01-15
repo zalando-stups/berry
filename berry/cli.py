@@ -33,8 +33,7 @@ def use_aws_credentials(application_id, path):
     access_key_id, secret_access_key = lookup_aws_credentials(application_id, path)
     if not access_key_id:
         raise UsageError('No AWS credentials found for application "{}" in {}'.format(application_id, path))
-    os.environ['AWS_ACCESS_KEY_ID'] = access_key_id
-    os.environ['AWS_SECRET_ACCESS_KEY'] = secret_access_key
+    return {'aws_access_key_id': access_key_id, 'aws_secret_access_key': secret_access_key}
 
 
 def run_berry(args):
@@ -56,13 +55,13 @@ def run_berry(args):
         raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your configuration YAML')
 
     if args.aws_credentials_file:
-        use_aws_credentials(application_id, args.aws_credentials_file)
-
-    s3 = boto3.client('s3')
+        aws_credentials = use_aws_credentials(application_id, args.aws_credentials_file)
+    else:
+        aws_credentials = {}
 
     while True:
-
-        # download credentials
+        session = boto3.Session(**aws_credentials)
+        s3 = session.client('s3')
 
         for fn in ['user', 'client']:
             key_name = '{}/{}.json'.format(application_id, fn)
