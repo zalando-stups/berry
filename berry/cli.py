@@ -92,7 +92,7 @@ def run_berry(args):
                 # https://github.com/zalando-stups/berry/issues/2
                 status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
                 if status_code == 403:
-                    msg = e.response.get('Error', {}).get('Message')
+                    msg = e.response['Error'].get('Message')
                     logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
                                    'Check your IAM role/user policy to allow read access! ' +
                                    '(S3 error message: {})').format(
@@ -132,7 +132,7 @@ def main():
     try:
         run_berry(args)
     except UsageError as e:
-        logging.error(e)
+        logging.error(str(e))
 
 if __name__ == '__main__':
     main()
