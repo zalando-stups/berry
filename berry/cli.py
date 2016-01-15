@@ -90,16 +90,17 @@ def run_berry(args):
                 # more friendly error messages
                 # https://github.com/zalando-stups/berry/issues/2
                 status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+                msg = e.response['Error'].get('Message')
                 if status_code == 403:
-                    msg = e.response['Error'].get('Message')
                     logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
                                    'Check your IAM role/user policy to allow read access! ' +
                                    '(S3 error message: {})').format(
                                   key_name, mint_bucket, msg))
                 elif status_code == 404:
                     logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
-                                   'Mint either did not sync them yet or the mint configuration is wrong.').format(
-                                  key_name, mint_bucket))
+                                   'Mint either did not sync them yet or the mint configuration is wrong. ' +
+                                   '(S3 error message: {})').format(
+                                  key_name, mint_bucket, msg))
                 else:
                     logging.error('Could not read from mint S3 bucket "{}": {}'.format(
                                   mint_bucket, e))

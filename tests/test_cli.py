@@ -140,7 +140,7 @@ def test_s3_error_message(monkeypatch, tmpdir):
     s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 404}, 'Error': {}}, 'get_object')
     run_berry(args)
 
-    log_error.assert_called_with('Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". Mint either did not sync them yet or the mint configuration is wrong.')
+    log_error.assert_called_with('Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". Mint either did not sync them yet or the mint configuration is wrong. (S3 error message: None)')
 
     # generic ClientError
     s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 999}, 'Error': {}}, 'get_object')
