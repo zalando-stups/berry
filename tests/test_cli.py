@@ -109,7 +109,20 @@ def test_main_missingargs(monkeypatch):
     monkeypatch.setattr('logging.warn', MagicMock())
     monkeypatch.setattr('logging.error', log_error)
     main()
-    log_error.assert_called_with('Usage Error: Application ID missing, please set "application_id" in your configuration YAML')
+    log_error.assert_called_with(
+        ('Usage Error: Application ID missing, please set "application_id" in your '
+         'configuration YAML')
+    )
+    args = MagicMock()
+    args.config_file = None
+    args.application_id = 'myapp'
+    args.aws_credentials_file = None
+    args.mint_bucket = None
+
+    with pytest.raises(UsageError) as excinfo:
+        run_berry(args)
+        assert ('Usage Error: Mint Bucket is not configured, please set "mint_bucket" in '
+                'your configuration YAML') in str(excinfo.value)
 
 
 def test_s3_error_message(monkeypatch, tmpdir):
@@ -118,7 +131,9 @@ def test_s3_error_message(monkeypatch, tmpdir):
     monkeypatch.setattr('logging.error', log_error)
 
     s3 = MagicMock()
-    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 403}, 'Error': {'Message': 'Access Denied'}}, 'get_object')
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'ResponseMetadata': {'HTTPStatusCode': 403},
+         'Error': {'Message': 'Access Denied'}}, 'get_object')
     monkeypatch.setattr('boto3.session.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
@@ -127,25 +142,65 @@ def test_s3_error_message(monkeypatch, tmpdir):
     args.config_file = str(tmpdir.join('taupage.yaml'))
     args.once = True
     args.aws_credentials_file = None
-    args.local_directory = str(tmpdir.join('credentials'))
     args.mint_bucket = 'my-mint-bucket'
+    args.local_directory = str(tmpdir.join('credentials'))
 
     os.makedirs(args.local_directory)
 
     logging.basicConfig(level=logging.INFO)
+
     run_berry(args)
+    log_error.assert_called_with(
+        ('Access denied while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Check your IAM role/user policy to allow read access! '
+         '(S3 error message: Access Denied)'))
 
-    log_error.assert_called_with('Access denied while trying to read "myapp/client.json" from mint S3 bucket "my-mint-bucket". Check your IAM role/user policy to allow read access! (S3 error message: Access Denied)')
-
-    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 404}, 'Error': {}}, 'get_object')
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'ResponseMetadata': {'HTTPStatusCode': 404},
+         'Error': {}}, 'get_object')
     run_berry(args)
+    log_error.assert_called_with(
+        'Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". '
+        'Mint either did not sync them yet or the mint configuration is wrong. (S3 error message: None)')
 
-    log_error.assert_called_with('Credentials file "myapp/client.json" not found in mint S3 bucket "my-mint-bucket". Mint either did not sync them yet or the mint configuration is wrong. (S3 error message: None)')
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Bucket': 'my-mint-bucket',
+                   'Code': 'PermanentRedirect',
+                   'Endpoint': 'my-mint-bucket.s3-eu-foobar-1.amazonaws.com',
+                   'Message': 'The bucket you are attempting to access must be '
+                              'addressed using the specified endpoint. Please send '
+                              'all future requests to this endpoint.'},
+         'ResponseMetadata': {'HTTPStatusCode': 301,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_object')
+    run_berry(args)
+    log_error.assert_called_with(
+        ('Get Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retry with region eu-foobar-1! (S3 error message: The '
+         'bucket you are attempting to access must be addressed using the specified '
+         'endpoint. Please send all future requests to this endpoint.)'))
+
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Code': 'InvalidRequest',
+                   'Message': 'The authorization mechanism you have provided is not '
+                              'supported. Please use AWS4-HMAC-SHA256.'},
+         'ResponseMetadata': {'HTTPStatusCode': 400,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_object')
+    run_berry(args)
+    log_error.assert_called_with(
+        ('Invalid Request while trying to read "myapp/client.json" from mint S3 '
+         'bucket "my-mint-bucket". Retry with region eu-central-1! (S3 error '
+         'message: The authorization mechanism you have provided is not supported. '
+         'Please use AWS4-HMAC-SHA256.)'))
 
     # generic ClientError
-    s3.get_object.side_effect = botocore.exceptions.ClientError({'ResponseMetadata': {'HTTPStatusCode': 999}, 'Error': {}}, 'get_object')
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'ResponseMetadata': {'HTTPStatusCode': 999}, 'Error': {}}, 'get_object')
     run_berry(args)
-    log_error.assert_called_with('Could not read from mint S3 bucket "my-mint-bucket": An error occurred (Unknown) when calling the get_object operation: Unknown')
+    log_error.assert_called_with(
+        ('Could not read from mint S3 bucket "my-mint-bucket": An error occurred '
+         '(Unknown) when calling the get_object operation: Unknown'))
 
     # generic Exception
     s3.get_object.side_effect = Exception('foobar')
