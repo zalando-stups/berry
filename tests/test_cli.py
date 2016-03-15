@@ -127,8 +127,10 @@ def test_main_missingargs(monkeypatch):
 
 def test_s3_error_message(monkeypatch, tmpdir):
     log_error = MagicMock()
+    log_info = MagicMock()
     monkeypatch.setattr('logging.warn', MagicMock())
     monkeypatch.setattr('logging.error', log_error)
+    monkeypatch.setattr('logging.info', log_info)
 
     s3 = MagicMock()
     s3.get_object.side_effect = botocore.exceptions.ClientError(
@@ -174,9 +176,9 @@ def test_s3_error_message(monkeypatch, tmpdir):
                               'HostId': '',
                               'RequestId': ''}}, 'get_object')
     run_berry(args)
-    log_error.assert_called_with(
-        ('Get Redirect while trying to read "myapp/client.json" from mint S3 bucket '
-         '"my-mint-bucket". Retry with region eu-foobar-1! (S3 error message: The '
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region eu-foobar-1! (S3 error message: The '
          'bucket you are attempting to access must be addressed using the specified '
          'endpoint. Please send all future requests to this endpoint.)'))
 
@@ -188,9 +190,9 @@ def test_s3_error_message(monkeypatch, tmpdir):
                               'HostId': '',
                               'RequestId': ''}}, 'get_object')
     run_berry(args)
-    log_error.assert_called_with(
+    log_info.assert_called_with(
         ('Invalid Request while trying to read "myapp/client.json" from mint S3 '
-         'bucket "my-mint-bucket". Retry with region eu-central-1! (S3 error '
+         'bucket "my-mint-bucket". Retrying with signature version v4! (S3 error '
          'message: The authorization mechanism you have provided is not supported. '
          'Please use AWS4-HMAC-SHA256.)'))
 

@@ -8,6 +8,7 @@ import logging
 import os
 import yaml
 import time
+from botocore.client import Config
 
 
 class UsageError(Exception):
@@ -81,21 +82,19 @@ def run_berry(args):
                         error_code = e.response['Error'].get('Code')
                         endpoint = e.response['Error'].get('Endpoint', '')
                         retry -= 1
-                        if error_code == 'InvalidRequest':
-                            # Try with a SigV4 Region
-                            region = 'eu-central-1'
-                            logging.error(('Invalid Request while trying to read "{}" from mint S3 bucket "{}". ' +
-                                           'Retry with region {}! ' +
-                                           '(S3 error message: {})').format(
-                                          key_name, mint_bucket, region, msg))
-                            s3 = session.client('s3', 'eu-central-1')
+                        if error_code == 'InvalidRequest' and 'Please use AWS4-HMAC-SHA256.' in msg:
+                            logging.info(('Invalid Request while trying to read "{}" from mint S3 bucket "{}". ' +
+                                          'Retrying with signature version v4! ' +
+                                          '(S3 error message: {})').format(
+                                         key_name, mint_bucket, msg))
+                            s3 = session.client('s3', config=Config(signature_version='s3v4'))
                         elif error_code == 'PermanentRedirect' and endpoint.endswith('.amazonaws.com'):
                             endpoint_parts = endpoint.split('.')
                             region = endpoint_parts[-3].replace('s3-', '')
-                            logging.error(('Get Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
-                                           'Retry with region {}! ' +
-                                           '(S3 error message: {})').format(
-                                          key_name, mint_bucket, region, msg))
+                            logging.info(('Got Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
+                                          'Retrying with region {}! ' +
+                                          '(S3 error message: {})').format(
+                                         key_name, mint_bucket, region, msg))
                             s3 = session.client('s3', region)
                         elif status_code == 403:
                             logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
