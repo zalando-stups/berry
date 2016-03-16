@@ -8,6 +8,7 @@ import logging
 import os
 import yaml
 import time
+from botocore.client import Config
 
 
 class UsageError(Exception):
@@ -59,58 +60,84 @@ def run_berry(args):
     else:
         aws_credentials = {}
 
+    session = boto3.session.Session(**aws_credentials)
+    s3 = session.client('s3')
     while True:
-        session = boto3.session.Session(**aws_credentials)
-        s3 = session.client('s3')
-
         for fn in ['user', 'client']:
             key_name = '{}/{}.json'.format(application_id, fn)
             try:
                 local_file = os.path.join(local_directory, '{}.json'.format(fn))
                 tmp_file = local_file + '.tmp'
-                response = s3.get_object(Bucket=mint_bucket, Key=key_name)
-                body = response['Body']
-                json_data = body.read()
+                response = None
+                retry = 3
+                while retry:
+                    try:
+                        response = s3.get_object(Bucket=mint_bucket, Key=key_name)
+                        retry = False
+                    except botocore.exceptions.ClientError as e:
+                        # more friendly error messages
+                        # https://github.com/zalando-stups/berry/issues/2
+                        status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
+                        msg = e.response['Error'].get('Message')
+                        error_code = e.response['Error'].get('Code')
+                        endpoint = e.response['Error'].get('Endpoint', '')
+                        retry -= 1
+                        if error_code == 'InvalidRequest' and 'Please use AWS4-HMAC-SHA256.' in msg:
+                            logging.info(('Invalid Request while trying to read "{}" from mint S3 bucket "{}". ' +
+                                          'Retrying with signature version v4! ' +
+                                          '(S3 error message: {})').format(
+                                         key_name, mint_bucket, msg))
+                            s3 = session.client('s3', config=Config(signature_version='s3v4'))
+                        elif error_code == 'PermanentRedirect' and endpoint.endswith('.amazonaws.com'):
+                            endpoint_parts = endpoint.split('.')
+                            region = endpoint_parts[-3].replace('s3-', '')
+                            logging.info(('Got Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
+                                          'Retrying with region {}! ' +
+                                          '(S3 error message: {})').format(
+                                         key_name, mint_bucket, region, msg))
+                            s3 = session.client('s3', region)
+                        elif status_code == 403:
+                            logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
+                                           'Check your IAM role/user policy to allow read access! ' +
+                                           '(S3 error message: {})').format(
+                                          key_name, mint_bucket, msg))
+                            retry = False
+                        elif status_code == 404:
+                            logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
+                                           'Mint either did not sync them yet or the mint configuration is wrong. ' +
+                                           '(S3 error message: {})').format(
+                                          key_name, mint_bucket, msg))
+                            retry = False
+                        else:
+                            logging.error('Could not read from mint S3 bucket "{}": {}'.format(
+                                          mint_bucket, e))
+                            retry = False
 
-                # check that the file contains valid JSON
-                new_data = json.loads(json_data.decode('utf-8'))
+                if response:
+                    body = response['Body']
+                    json_data = body.read()
 
-                try:
-                    with open(local_file, 'r') as fd:
-                        old_data = json.load(fd)
-                except:
-                    old_data = None
-                # check whether the file contents changed
-                if new_data != old_data:
-                    with open(tmp_file, 'wb') as fd:
-                        fd.write(json_data)
-                    os.rename(tmp_file, local_file)
-                    logging.info('Rotated {} credentials for {}'.format(fn, application_id))
-            except botocore.exceptions.ClientError as e:
-                # more friendly error messages
-                # https://github.com/zalando-stups/berry/issues/2
-                status_code = e.response.get('ResponseMetadata', {}).get('HTTPStatusCode')
-                msg = e.response['Error'].get('Message')
-                if status_code == 403:
-                    logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +
-                                   'Check your IAM role/user policy to allow read access! ' +
-                                   '(S3 error message: {})').format(
-                                  key_name, mint_bucket, msg))
-                elif status_code == 404:
-                    logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
-                                   'Mint either did not sync them yet or the mint configuration is wrong. ' +
-                                   '(S3 error message: {})').format(
-                                  key_name, mint_bucket, msg))
-                else:
-                    logging.error('Could not read from mint S3 bucket "{}": {}'.format(
-                                  mint_bucket, e))
+                    # check that the file contains valid JSON
+                    new_data = json.loads(json_data.decode('utf-8'))
+
+                    try:
+                        with open(local_file, 'r') as fd:
+                            old_data = json.load(fd)
+                    except:
+                        old_data = None
+                    # check whether the file contents changed
+                    if new_data != old_data:
+                        with open(tmp_file, 'wb') as fd:
+                            fd.write(json_data)
+                        os.rename(tmp_file, local_file)
+                        logging.info('Rotated {} credentials for {}'.format(fn, application_id))
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
 
         if args.once:
             break
 
-        time.sleep(args.interval)
+        time.sleep(args.interval)  # pragma: no cover
 
 
 def main():
