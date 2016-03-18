@@ -8,6 +8,7 @@ import logging
 import os
 import yaml
 import time
+import dns.resolver
 from botocore.client import Config
 
 
@@ -17,6 +18,36 @@ class UsageError(Exception):
 
     def __str__(self):
         return 'Usage Error: {}'.format(self.msg)
+
+
+def get_bucket_region(client, bucket_name, endpoint):
+    try:
+        return client.get_bucket_location(Bucket=bucket_name).get('LocationConstraint')
+    except botocore.exceptions.ClientError as e:
+        if e.response['Error'].get('Code') != 'AccessDenied':
+            logging.error('Unkown Error on get_bucket_location({})! (S3 error message: {})'.format(bucket_name, e))
+    if endpoint.endswith('.amazonaws.com'):
+        endpoint_parts = endpoint.split('.')
+        if endpoint_parts[-3].startswith('s3-'):
+            return endpoint_parts[-3].replace('s3-', '')
+    bucket_dns = '{}.s3.amazonaws.com'.format(bucket_name)
+    try:
+        answers = dns.resolver.query(bucket_dns, 'CNAME')
+        if len(answers) == 1:
+            answer = answers[0]
+            if (len(answer.target) == 5 and
+                    str(answer.target).endswith('.amazonaws.com.') and
+                    str(answer.target).startswith('s3')):
+                return answer.target.labels[1].decode()
+            if (len(answer.target) == 4 and
+                    str(answer.target).endswith('.amazonaws.com.') and
+                    str(answer.target).startswith('s3-')):
+                return answer.target.labels[0].decode().replace('s3-', '')
+            logging.error('Unsupportet DNS response for {}: {}'.format(bucket_dns, answer))
+        logging.error('Two many entrys ({}) for DNS Name {}'.format(len(answers), bucket_dns))
+    except Exception as e:
+        logging.exception('Unsupportet Exception: {}'.format(e))
+    return None
 
 
 def lookup_aws_credentials(application_id, path):
@@ -89,12 +120,11 @@ def run_berry(args):
                                          key_name, mint_bucket, msg))
                             s3 = session.client('s3', config=Config(signature_version='s3v4'))
                         elif error_code == 'PermanentRedirect' and endpoint.endswith('.amazonaws.com'):
-                            endpoint_parts = endpoint.split('.')
-                            region = endpoint_parts[-3].replace('s3-', '')
+                            region = get_bucket_region(s3, mint_bucket, endpoint)
                             logging.info(('Got Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
-                                          'Retrying with region {}! ' +
+                                          'Retrying with region {}, endpoint {}! ' +
                                           '(S3 error message: {})').format(
-                                         key_name, mint_bucket, region, msg))
+                                         key_name, mint_bucket, region, endpoint, msg))
                             s3 = session.client('s3', region)
                         elif status_code == 403:
                             logging.error(('Access denied while trying to read "{}" from mint S3 bucket "{}". ' +

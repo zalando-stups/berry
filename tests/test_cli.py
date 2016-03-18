@@ -4,6 +4,7 @@ import logging
 import os
 import pytest
 import yaml
+import dns
 
 from berry.cli import use_aws_credentials, run_berry, main, UsageError
 from mock import MagicMock
@@ -139,6 +140,9 @@ def test_s3_error_message(monkeypatch, tmpdir):
     monkeypatch.setattr('boto3.session.Session', mock_session(s3))
     monkeypatch.setattr('time.sleep', lambda x: 0)
 
+    dns_resolver = MagicMock()
+    monkeypatch.setattr('dns.resolver.query', dns_resolver)
+
     args = MagicMock()
     args.application_id = 'myapp'
     args.config_file = str(tmpdir.join('taupage.yaml'))
@@ -175,12 +179,135 @@ def test_s3_error_message(monkeypatch, tmpdir):
          'ResponseMetadata': {'HTTPStatusCode': 301,
                               'HostId': '',
                               'RequestId': ''}}, 'get_object')
+    s3.get_bucket_location.return_value = {'LocationConstraint': 'eu-foobar-1'}
     run_berry(args)
     log_info.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
-         '"my-mint-bucket". Retrying with region eu-foobar-1! (S3 error message: The '
-         'bucket you are attempting to access must be addressed using the specified '
+         '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
+         'my-mint-bucket.s3-eu-foobar-1.amazonaws.com! (S3 error message: The bucket '
+         'you are attempting to access must be addressed using the specified '
          'endpoint. Please send all future requests to this endpoint.)'))
+
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Bucket': 'my-mint-bucket',
+                   'Code': 'PermanentRedirect',
+                   'Endpoint': 'my-mint-bucket.s3-eu-foobar-1.amazonaws.com',
+                   'Message': 'The bucket you are attempting to access must be '
+                              'addressed using the specified endpoint. Please send '
+                              'all future requests to this endpoint.'},
+         'ResponseMetadata': {'HTTPStatusCode': 301,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_object')
+    s3.get_bucket_location.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Code': 'UnknownError',
+                   'Message': 'Unknown Error, only for Test'},
+         'ResponseMetadata': {'HTTPStatusCode': 403,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_bucket_location')
+    run_berry(args)
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
+         'my-mint-bucket.s3-eu-foobar-1.amazonaws.com! (S3 error message: The bucket '
+         'you are attempting to access must be addressed using the specified '
+         'endpoint. Please send all future requests to this endpoint.)'))
+
+    s3.get_object.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Bucket': 'my-mint-bucket',
+                   'Code': 'PermanentRedirect',
+                   'Endpoint': 'my-mint-bucket.s3.amazonaws.com',
+                   'Message': 'The bucket you are attempting to access must be '
+                              'addressed using the specified endpoint. Please send '
+                              'all future requests to this endpoint.'},
+         'ResponseMetadata': {'HTTPStatusCode': 301,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_object')
+    s3.get_bucket_location.side_effect = botocore.exceptions.ClientError(
+        {'Error': {'Code': 'UnknownError',
+                   'Message': 'Unknown Error, only for Test'},
+         'ResponseMetadata': {'HTTPStatusCode': 403,
+                              'HostId': '',
+                              'RequestId': ''}}, 'get_bucket_location')
+    message_text = """id 1234
+opcode QUERY
+rcode NOERROR
+flags QR AA RD
+;QUESTION
+my-mint-bucket.s3.amazonaws.com. IN CNAME
+;ANSWER
+my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.eu-foobar-1.amazonaws.com.
+;AUTHORITY
+;ADDITIONAL
+"""
+    dns_resolver.return_value = (dns.resolver.Answer(
+        dns.name.from_text('my-mint-bucket.s3.amazonaws.com.'),
+        dns.rdatatype.CNAME,
+        dns.rdataclass.IN,
+        dns.message.from_text(message_text)))
+    run_berry(args)
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
+         'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
+         'attempting to access must be addressed using the specified endpoint. '
+         'Please send all future requests to this endpoint.)'))
+
+    message_text = """id 1234
+opcode QUERY
+rcode NOERROR
+flags QR AA RD
+;QUESTION
+my-mint-bucket.s3.amazonaws.com. IN CNAME
+;ANSWER
+my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3-eu-foobar-1.amazonaws.com.
+;AUTHORITY
+;ADDITIONAL
+"""
+    dns_resolver.return_value = (dns.resolver.Answer(
+        dns.name.from_text('my-mint-bucket.s3.amazonaws.com.'),
+        dns.rdatatype.CNAME,
+        dns.rdataclass.IN,
+        dns.message.from_text(message_text)))
+    run_berry(args)
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
+         'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
+         'attempting to access must be addressed using the specified endpoint. '
+         'Please send all future requests to this endpoint.)'))
+
+    message_text = """id 1234
+opcode QUERY
+rcode NOERROR
+flags QR AA RD
+;QUESTION
+my-mint-bucket.s3.amazonaws.com. IN CNAME
+;ANSWER
+my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.amazonaws.com.
+;AUTHORITY
+;ADDITIONAL
+"""
+    dns_resolver.return_value = (dns.resolver.Answer(
+        dns.name.from_text('my-mint-bucket.s3.amazonaws.com.'),
+        dns.rdatatype.CNAME,
+        dns.rdataclass.IN,
+        dns.message.from_text(message_text)))
+    run_berry(args)
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region None, endpoint '
+         'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
+         'attempting to access must be addressed using the specified endpoint. '
+         'Please send all future requests to this endpoint.)'))
+
+    dns_resolver.side_effect = dns.resolver.NXDOMAIN
+    run_berry(args)
+    log_info.assert_called_with(
+        ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
+         '"my-mint-bucket". Retrying with region None, endpoint '
+         'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
+         'attempting to access must be addressed using the specified endpoint. '
+         'Please send all future requests to this endpoint.)'))
 
     s3.get_object.side_effect = botocore.exceptions.ClientError(
         {'Error': {'Code': 'InvalidRequest',
