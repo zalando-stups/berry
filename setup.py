@@ -8,6 +8,7 @@ import inspect
 import setuptools
 from setuptools.command.test import test as TestCommand
 from setuptools import setup
+from pip.req import parse_requirements
 
 if sys.version_info < (2, 7, 0):
     sys.stderr.write('FATAL: STUPS berry needs to be run with Python 2.7+\n')
@@ -92,8 +93,9 @@ class PyTest(TestCommand):
 
 
 def get_install_requirements(path):
-    content = open(os.path.join(__location__, path)).read()
-    return [req for req in content.split('\\n') if req != '']
+    # parse_requirements() returns generator of pip.req.InstallRequirement objects
+    install_reqs = parse_requirements(path, session=False)
+    return [str(ir.req) for ir in install_reqs]
 
 
 def read(fname):
