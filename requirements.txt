@@ -1,4 +1,4 @@
 boto3>=1.2.3
 PyYAML
-dnspython ; python_version <= 2.7
-dnspython3 ; python_version > 3.3
+dnspython ; python_version <= '2.7'
+dnspython3 ; python_version > '3.3'
