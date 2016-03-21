@@ -95,7 +95,7 @@ class PyTest(TestCommand):
 def get_install_requirements(path):
     # parse_requirements() returns generator of pip.req.InstallRequirement objects
     install_reqs = parse_requirements(path, session=False)
-    return [str(ir.req) for ir in install_reqs]
+    return [str(ir.req) for ir in install_reqs if ir.match_markers()]
 
 
 def read(fname):
