@@ -114,16 +114,16 @@ def run_berry(args):
                         endpoint = e.response['Error'].get('Endpoint', '')
                         retry -= 1
                         if error_code == 'InvalidRequest' and 'Please use AWS4-HMAC-SHA256.' in msg:
-                            logging.info(('Invalid Request while trying to read "{}" from mint S3 bucket "{}". ' +
-                                          'Retrying with signature version v4! ' +
-                                          '(S3 error message: {})').format(
+                            logging.debug(('Invalid Request while trying to read "{}" from mint S3 bucket "{}". ' +
+                                           'Retrying with signature version v4! ' +
+                                           '(S3 error message: {})').format(
                                          key_name, mint_bucket, msg))
                             s3 = session.client('s3', config=Config(signature_version='s3v4'))
                         elif error_code == 'PermanentRedirect' and endpoint.endswith('.amazonaws.com'):
                             region = get_bucket_region(s3, mint_bucket, endpoint)
-                            logging.info(('Got Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
-                                          'Retrying with region {}, endpoint {}! ' +
-                                          '(S3 error message: {})').format(
+                            logging.debug(('Got Redirect while trying to read "{}" from mint S3 bucket "{}". ' +
+                                           'Retrying with region {}, endpoint {}! ' +
+                                           '(S3 error message: {})').format(
                                          key_name, mint_bucket, region, endpoint, msg))
                             s3 = session.client('s3', region)
                         elif status_code == 403:
