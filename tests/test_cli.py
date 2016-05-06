@@ -129,9 +129,11 @@ def test_main_missingargs(monkeypatch):
 def test_s3_error_message(monkeypatch, tmpdir):
     log_error = MagicMock()
     log_info = MagicMock()
+    log_debug = MagicMock()
     monkeypatch.setattr('logging.warn', MagicMock())
     monkeypatch.setattr('logging.error', log_error)
     monkeypatch.setattr('logging.info', log_info)
+    monkeypatch.setattr('logging.debug', log_debug)
 
     s3 = MagicMock()
     s3.get_object.side_effect = botocore.exceptions.ClientError(
@@ -181,7 +183,7 @@ def test_s3_error_message(monkeypatch, tmpdir):
                               'RequestId': ''}}, 'get_object')
     s3.get_bucket_location.return_value = {'LocationConstraint': 'eu-foobar-1'}
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
          'my-mint-bucket.s3-eu-foobar-1.amazonaws.com! (S3 error message: The bucket '
@@ -205,7 +207,7 @@ def test_s3_error_message(monkeypatch, tmpdir):
                               'HostId': '',
                               'RequestId': ''}}, 'get_bucket_location')
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
          'my-mint-bucket.s3-eu-foobar-1.amazonaws.com! (S3 error message: The bucket '
@@ -245,7 +247,7 @@ my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.eu-foobar-1.amazonaws.com.
         dns.rdataclass.IN,
         dns.message.from_text(message_text)))
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
          'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
@@ -269,7 +271,7 @@ my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3-eu-foobar-1.amazonaws.com.
         dns.rdataclass.IN,
         dns.message.from_text(message_text)))
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region eu-foobar-1, endpoint '
          'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
@@ -293,7 +295,7 @@ my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.amazonaws.com.
         dns.rdataclass.IN,
         dns.message.from_text(message_text)))
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region None, endpoint '
          'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
@@ -302,7 +304,7 @@ my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.amazonaws.com.
 
     dns_resolver.side_effect = dns.resolver.NXDOMAIN
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Got Redirect while trying to read "myapp/client.json" from mint S3 bucket '
          '"my-mint-bucket". Retrying with region None, endpoint '
          'my-mint-bucket.s3.amazonaws.com! (S3 error message: The bucket you are '
@@ -317,7 +319,7 @@ my-mint-bucket.s3.amazonaws.com. 1 IN CNAME s3.amazonaws.com.
                               'HostId': '',
                               'RequestId': ''}}, 'get_object')
     run_berry(args)
-    log_info.assert_called_with(
+    log_debug.assert_called_with(
         ('Invalid Request while trying to read "myapp/client.json" from mint S3 '
          'bucket "my-mint-bucket". Retrying with signature version v4! (S3 error '
          'message: The authorization mechanism you have provided is not supported. '
