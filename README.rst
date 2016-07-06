@@ -63,5 +63,5 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 
-.. _mint: https://github.com/zalando-stups/mint
+.. _mint: http://docs.stups.io/en/latest/components/mint.html
 .. _standard AWS SDK inputs: http://blogs.aws.amazon.com/security/post/Tx3D6U6WSFGOK2H/A-New-and-Standardized-Way-to-Manage-Credentials-in-the-AWS-SDKs
