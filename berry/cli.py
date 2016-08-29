@@ -179,7 +179,7 @@ def main():
     parser.add_argument('-m', '--mint-bucket', help='Mint S3 bucket name')
     parser.add_argument('-c', '--aws-credentials-file',
                         help='Lookup AWS credentials by application ID in the given file')
-    parser.add_argument('-i', '--interval', help='Interval in seconds', default=120)
+    parser.add_argument('-i', '--interval', help='Interval in seconds', type=int, default=120)
     parser.add_argument('--once', help='Download credentials once and exit', action='store_true')
     args = parser.parse_args()
 
