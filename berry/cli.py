@@ -86,14 +86,15 @@ def run_berry(args):
     if not mint_bucket:
         raise UsageError('Mint Bucket is not configured, please set "mint_bucket" in your configuration YAML')
 
-    if args.aws_credentials_file:
-        aws_credentials = use_aws_credentials(application_id, args.aws_credentials_file)
-    else:
-        aws_credentials = {}
-
-    session = boto3.session.Session(**aws_credentials)
-    s3 = session.client('s3')
     while True:
+        if args.aws_credentials_file:
+            aws_credentials = use_aws_credentials(application_id, args.aws_credentials_file)
+        else:
+            aws_credentials = {}
+
+        session = boto3.session.Session(**aws_credentials)
+        s3 = session.client('s3')
+
         for fn in ['user', 'client']:
             key_name = '{}/{}.json'.format(application_id, fn)
             try:
