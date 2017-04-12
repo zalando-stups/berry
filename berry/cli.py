@@ -181,15 +181,18 @@ def main():
                         help='Lookup AWS credentials by application ID in the given file')
     parser.add_argument('-i', '--interval', help='Interval in seconds', type=int, default=120)
     parser.add_argument('--once', help='Download credentials once and exit', action='store_true')
+    parser.add_argument('-s', '--silent', action='store_true',
+                        help='silent output - only errors will be displayed')
     args = parser.parse_args()
-
-    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+    log_level = logging.ERROR if args.silent else logging.INFO
+    logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
     # do not log new HTTPS connections (INFO level):
     logging.getLogger('botocore.vendored.requests').setLevel(logging.WARN)
     try:
         run_berry(args)
     except UsageError as e:
         logging.error(str(e))
+
 
 if __name__ == '__main__':
     main()
