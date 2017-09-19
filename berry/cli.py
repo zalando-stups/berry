@@ -94,7 +94,7 @@ def run_berry(args):
 
         session = boto3.session.Session(**aws_credentials)
         s3 = session.client('s3')
-
+        err_count = 0
         for fn in ['user', 'client']:
             key_name = '{}/{}.json'.format(application_id, fn)
             try:
@@ -133,16 +133,19 @@ def run_berry(args):
                                            '(S3 error message: {})').format(
                                           key_name, mint_bucket, msg))
                             retry = False
+                            err_count += 1
                         elif status_code == 404:
                             logging.error(('Credentials file "{}" not found in mint S3 bucket "{}". ' +
                                            'Mint either did not sync them yet or the mint configuration is wrong. ' +
                                            '(S3 error message: {})').format(
                                           key_name, mint_bucket, msg))
                             retry = False
+                            err_count += 1
                         else:
                             logging.error('Could not read from mint S3 bucket "{}": {}'.format(
                                           mint_bucket, e))
                             retry = False
+                            err_count += 1
 
                 if response:
                     body = response['Body']
@@ -164,14 +167,15 @@ def run_berry(args):
                         logging.info('Rotated {} credentials for {}'.format(fn, application_id))
             except:
                 logging.exception('Failed to download {} credentials'.format(fn))
+                err_count += 1
 
         if args.once:
-            break
+            return err_count == 0
 
         time.sleep(args.interval)  # pragma: no cover
 
 
-def main():
+def configure():
     parser = argparse.ArgumentParser()
     parser.add_argument('local_directory', help='Local directory to write credentials to')
     parser.add_argument('-f', '--config-file', help='Read berry settings from given YAML file',
@@ -189,11 +193,20 @@ def main():
     logging.basicConfig(level=log_level, format='%(levelname)s: %(message)s')
     # do not log new HTTPS connections (INFO level):
     logging.getLogger('botocore.vendored.requests').setLevel(logging.WARN)
+    return args
+
+
+def main():
+    args = configure()
     try:
-        run_berry(args)
+        if run_berry(args):
+            return 0
+        else:
+            return 1
     except UsageError as e:
         logging.error(str(e))
+        return 1
 
 
 if __name__ == '__main__':
-    main()
+    exit(main())
