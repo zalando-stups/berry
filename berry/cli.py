@@ -157,7 +157,7 @@ def run_berry(args):
                     try:
                         with open(local_file, 'r') as fd:
                             old_data = json.load(fd)
-                    except:
+                    except Exception:
                         old_data = None
                     # check whether the file contents changed
                     if new_data != old_data:
@@ -165,7 +165,7 @@ def run_berry(args):
                             fd.write(json_data)
                         os.rename(tmp_file, local_file)
                         logging.info('Rotated {} credentials for {}'.format(fn, application_id))
-            except:
+            except Exception:
                 logging.exception('Failed to download {} credentials'.format(fn))
                 err_count += 1
 
